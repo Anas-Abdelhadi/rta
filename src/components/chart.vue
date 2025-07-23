@@ -9,7 +9,7 @@
     <button @click="directionBottom">bottom</button>
     <button @click="directionRight">right</button>
     <div class="chart-container" ref="chartContainer"></div>
-    <Sidebar
+    <!-- <Sidebar
       :fitChart="fitChart"
       :compactChart="directionTop"
       :expandAllNodes="expandAllNodes"
@@ -21,7 +21,7 @@
       :clearMarker="clearMarker"
       :findParent="findParent"
       :clickedNodeID="clickedNodeID"
-    />
+    /> -->
     <!-- chart node HTML -->
     <div v-for="node in orgData" :key="node.id" :id="`vue-node-${node.id}`" style="display: none">
       <NodeUI :data="node" />
@@ -39,37 +39,56 @@ const chartContainer = ref<HTMLElement | null>(null)
 const orgData = ref([]) as Ref<TDataType[]>
 const isLoading = ref(true)
 
-const { render, fitChart, expandAllNodes, collapseAllNodes, directionBottom, directionTop, directionLeft, directionRight, clearMarker, findParent, clickedNodeID } = useOrgChart()
-type TDataType = {
-  id: string
-  parentId: string
+const { render, fitChart, expandAllNodes, collapseAllNodes, directionBottom, directionTop, directionLeft, directionRight, clearMarker, findParent, clickedNodeID, addNode } = useOrgChart()
+export type TDataType = {
+  id: string // -
+  parentId: string // -
+  height: number // -
+  //extra...
   name: string
-  title: string
-
-  createdAt: string
+  on: boolean
+  accent: string
 }
+// TNodeBase
+//TDepartment = TNodeBase & ....
+
+// node, children?:[]
+//2. flatten
 const data = [
   {
     id: '1',
     parentId: '',
-    name: 'RTA'
+    name: 'RTA 200',
+    height: 200,
+    on: true,
+    accent: 'blue'
   },
   {
     id: '2',
     parentId: '1',
-    name: 'ABC'
+    name: 'ABC 400',
+    height: 400,
+    on: true,
+    accent: 'red'
   },
   {
     id: '3',
     parentId: '1',
-    name: 'XYZ'
+    name: 'XYZ 500',
+    height: 500,
+    on: true,
+    accent: 'green'
   },
   {
     id: '4',
     parentId: '2',
-    name: 'QWE'
+    name: 'QWE 300',
+    height: 300,
+    on: true,
+    accent: 'red'
   }
 ] as TDataType[]
+
 const mock = () => new Promise<TDataType[]>(r => setTimeout(() => r(data), 1000))
 onMounted(async () => {
   orgData.value = await mock()
