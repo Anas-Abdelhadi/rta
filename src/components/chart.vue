@@ -8,6 +8,7 @@
     <button @click="directionTop">top</button>
     <button @click="directionBottom">bottom</button>
     <button @click="directionRight">right</button>
+    <input v-model="search" />
     <div class="chart-container" ref="chartContainer"></div>
     <!-- <Sidebar
       :fitChart="fitChart"
@@ -23,23 +24,44 @@
       :clickedNodeID="clickedNodeID"
     /> -->
     <!-- chart node HTML -->
-    <div v-for="node in orgData" :key="node.id" :id="`vue-node-${node.id}`" style="display: none">
-      <NodeUI :data="node" />
-    </div>
+    <div v-for="node in orgData" :key="node.id" :id="`vue-node-${node.id}`" style="display: none"></div>
   </div>
 </template>
 <script setup lang="ts">
-import { nextTick, onMounted, ref, type Ref } from 'vue'
+import { nextTick, onMounted, ref, watch, type Ref } from 'vue'
 
 import { useOrgChart } from '../common/render'
-import NodeUI from './node.vue'
 
 const chartContainer = ref<HTMLElement | null>(null)
 
 const orgData = ref([]) as Ref<TDataType[]>
 const isLoading = ref(true)
+const isReady = ref(false)
+const search = ref('')
 
-const { render, fitChart, expandAllNodes, collapseAllNodes, directionBottom, directionTop, directionLeft, directionRight, clearMarker, findParent, clickedNodeID, addNode } = useOrgChart()
+watch(
+  () => [isReady.value, search.value],
+  () => {
+    isReady.value && filterChart?.(search.value)
+  }
+)
+
+const {
+  render,
+  filterChart,
+  chartInstance,
+  fitChart,
+  expandAllNodes,
+  collapseAllNodes,
+  directionBottom,
+  directionTop,
+  directionLeft,
+  directionRight,
+  clearMarker,
+  findParent,
+  clickedNodeID,
+  addNode
+} = useOrgChart()
 export type TDataType = {
   id: string // -
   parentId: string // -
@@ -95,5 +117,7 @@ onMounted(async () => {
   isLoading.value = false
   await nextTick()
   render(chartContainer.value!, orgData.value)
+  await nextTick()
+  isReady.value = true
 })
 </script>
