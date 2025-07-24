@@ -5,11 +5,11 @@ import { nextTick, ref, type Ref } from 'vue'
 import { createApp } from 'vue'
 import NodeUI from '../components/node.vue'
 const mock = () => new Promise<void>(r => setTimeout(() => r(), 300))
-const vueAppCache = new Map<string,   ReturnType<typeof createApp>  >()
+const vueAppCache = new Map<string, ReturnType<typeof createApp>>()
 const nodes = new Map<string, d3.HierarchyNode<any>>()
 
-async function mountVueNodes(data: any[], chart: CubesOrgChart) {
-  data.forEach(node => {
+async function mountVueNodes(chart: CubesOrgChart) {
+  ;(chart.data() ?? []).forEach(node => {
     const id = node.id
     const mountPoint = document.getElementById(`vue-node-mount-${id}`)
 
@@ -23,9 +23,7 @@ async function mountVueNodes(data: any[], chart: CubesOrgChart) {
       vueAppCache.delete(id)
     }
 
-    
     const app = createApp(NodeUI, {
-     
       node: nodes.get(node.id)!,
       // onToggle: (on: boolean) => {
       //   chart.updateNodeHeight(node.id, on)
@@ -33,8 +31,8 @@ async function mountVueNodes(data: any[], chart: CubesOrgChart) {
       onToggle: (on: boolean) => {
         debugger
         //_directSubordinates
-        nodes.set(node.id!,{...node,  on}) 
-        chart.setExpanded(node.id,on).render()
+       // nodes.set(node.id!, { ...node, on })
+        chart.toggle(node.id, on)
       },
       onAdd: async () => {
         const id = `${Math.random().toString(36).slice(2)}`
@@ -52,7 +50,7 @@ async function mountVueNodes(data: any[], chart: CubesOrgChart) {
       }
     })
 
-    vueAppCache.set(id,   app  )
+    vueAppCache.set(id, app)
     app.mount(mountPoint)
   })
   // await nextTick()
@@ -68,11 +66,10 @@ async function mountVueNodes(data: any[], chart: CubesOrgChart) {
 //   }
 // }
 
- 
 class CubesOrgChart extends OrgChart<any> {
   // updateNodeHeight(nodeId: string, on: boolean) {
   //   const data = vueAppCache.get(nodeId)
- 
+
   //   this.updateNodesState()
   //   this.render().fit()
   // }
@@ -92,23 +89,38 @@ class CubesOrgChart extends OrgChart<any> {
 
   //   return this
   // }
-  toggle(node){
-     this.setExpanded(node.id, node.on)
-     this.updateNodesState()
-     this.render()
+  toggle(nodeId: string, on: boolean) {
+    const node = nodes.get(nodeId)
+    debugger
+    if (!node) return
+
+    // if (on) {
+    //   this.setExpanded(node.id)
+    // } else {
+    //   this.setExpanded(node.id, false)
+    // }
+
+    // this.updateNodesState()
+    // this.render()
+    const clickEvent = new MouseEvent('click', {
+      bubbles: true,
+      cancelable: true,
+      view: window
+    })
+
+    this.onButtonClick(clickEvent, node)
   }
   render() {
-     
     //const cache = Array.from(vueAppCache.values()).map(({ dataRef }) => dataRef.value)
-    const data = this.data()??[]//cache.length?cache:this.data()??[]
+    // const data = this.data()??[]//cache.length?cache:this.data()??[]
     // update the chart’s dataset from latest reactive values
-    this.data(data)
+    //this.data(data)
 
     // draw chart using updated data
     super.render()
 
     // re-mount Vue components
-    mountVueNodes(data, this)
+    mountVueNodes(this)
 
     return this
   }
@@ -140,8 +152,8 @@ export function useOrgChart() {
         nodes.set(d.data.id, d)
         return `<div id="vue-node-mount-${d.data.id}" class="vue-node-placeholder"></div>`
       })
-       .nodeUpdate(function  (d) {
-         nodes.set(d.data.id, d)
+      .nodeUpdate(function (d) {
+        nodes.set(d.data.id, d)
         d3.select(this)
           .select('.node-rect')
           // .attr('stroke', (d: any) => (d.data._highlighted || d.data._upToTheRootHighlighted ? '#4285F4' : 'none'))
@@ -150,14 +162,14 @@ export function useOrgChart() {
           .attr('stroke-linejoin', 'round')
           .style('stroke-alignment', 'outer')
 
-          //d3.select(this).select('.node-button-g').remove()
-      }) 
+        d3.select(this).select('.node-button-g').remove()
+      })
       .linkUpdate(function (d: any) {
         d3.select(this)
           .attr('stroke', (d: any) => (d.data._upToTheRootHighlighted ? '#4285F4' : '#1E1C8A'))
           .attr('stroke-width', (d: any) => (d.data._upToTheRootHighlighted ? 4 : 2))
         if (d.data._upToTheRootHighlighted) d3.select(this).raise()
-      })  
+      })
 
       .nodeButtonX(() => -20)
       .nodeButtonY(() => -10)
@@ -170,7 +182,6 @@ export function useOrgChart() {
             ${text}
           </div>
         `
-
       })
 
       .duration(650)
@@ -183,12 +194,11 @@ export function useOrgChart() {
     chart.onExpandOrCollapse(d => {
       // //todo: remove hidden!
       //  unmountVueNodes(currentIds)
-       
-      mountVueNodes(data, chart as CubesOrgChart)
+
+      mountVueNodes(chart as CubesOrgChart)
       //chart.render()
     })
     chartInstance.value = chart
-   
   }
 
   const fitChart = () => chartInstance.value?.fit()
