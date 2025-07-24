@@ -4,6 +4,8 @@ import { OrgChart, type State } from 'd3-org-chart'
 import { nextTick, ref, type Ref } from 'vue'
 import { createApp } from 'vue'
 import NodeUI from '../components/node.vue'
+import { mainApp } from '../main'
+import type { TDataType } from '../components/chart.vue'
 const mock = () => new Promise<void>(r => setTimeout(() => r(), 300))
 const vueAppCache = new Map<string, ReturnType<typeof createApp>>()
 const nodes = new Map<string, d3.HierarchyNode<any>>()
@@ -49,7 +51,7 @@ async function mountVueNodes(chart: CubesOrgChart) {
         chart.fit({ nodes: [nodes.get(node.id)!, nodes.get(id)!] })
       }
     })
-
+     Object.assign(app._context, mainApp._context)
     vueAppCache.set(id, app)
     app.mount(mountPoint)
   })
@@ -66,7 +68,7 @@ async function mountVueNodes(chart: CubesOrgChart) {
 //   }
 // }
 
-class CubesOrgChart extends OrgChart<any> {
+export class CubesOrgChart extends OrgChart<any> {
   // updateNodeHeight(nodeId: string, on: boolean) {
   //   const data = vueAppCache.get(nodeId)
 
@@ -89,6 +91,11 @@ class CubesOrgChart extends OrgChart<any> {
 
   //   return this
   // }
+  isEditMode:boolean = false
+  setEditMode(isEdit:boolean){
+    this.isEditMode = isEdit
+    this.render()
+  }
   toggle(nodeId: string, on: boolean) {
     const node = nodes.get(nodeId)
     debugger
@@ -126,7 +133,7 @@ class CubesOrgChart extends OrgChart<any> {
   }
 }
 export function useOrgChart() {
-  const chartInstance: Ref<OrgChart<any> | null> = ref(null)
+  const chartInstance: Ref<CubesOrgChart | null> = ref(null)
   const clickedNodeID: Ref<string | null> = ref(null)
 
   const render = (container: HTMLElement, data: any[]) => {
@@ -153,7 +160,8 @@ export function useOrgChart() {
         nodes.set(d.data.id, d)
         return `<div id="vue-node-mount-${d.data.id}" class="vue-node-placeholder"></div>`
       })
-      .nodeUpdate(function (d) {
+      .nodeUpdate(function (d:d3.HierarchyNode<TDataType>) {
+        chartInstance.value && (d.data.isEditMode= chartInstance.value!.isEditMode)
         nodes.set(d.data.id, d)
         d3.select(this)
           .select('.node-rect')

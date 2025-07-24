@@ -4,25 +4,23 @@
     <p>Fetching RTA Data</p>
   </div>
   <div v-else>
-    <button @click="directionLeft">left</button>
-    <button @click="directionTop">top</button>
-    <button @click="directionBottom">bottom</button>
-    <button @click="directionRight">right</button>
-    <input v-model="search" />
+    <div id="actions">
+      <button @click="directionLeft">left</button>
+      <button @click="directionTop">top</button>
+      <button @click="directionBottom">bottom</button>
+      <button @click="directionRight">right</button>
+      <br />
+      <h4>EDIT CHART</h4>
+      <button v-if="!chartInstance?.isEditMode" @click="chartInstance?.setEditMode(true)">EDIT</button>
+      <template v-else>
+        <button @click="chartInstance?.setEditMode(false)">DONE</button>
+      </template>
+      <br />
+      <h4>SEARCH</h4>
+      <input v-model="search" />
+    </div>
     <div class="chart-container" ref="chartContainer"></div>
-    <!-- <Sidebar
-      :fitChart="fitChart"
-      :compactChart="directionTop"
-      :expandAllNodes="expandAllNodes"
-      :collapseAllNodes="collapseAllNodes"
-      :directionBottom="directionBottom"
-      :directionTop="directionTop"
-      :directionLeft="directionLeft"
-      :directionRight="directionRight"
-      :clearMarker="clearMarker"
-      :findParent="findParent"
-      :clickedNodeID="clickedNodeID"
-    /> -->
+
     <!-- chart node HTML -->
     <div v-for="node in orgData" :key="node.id" :id="`vue-node-${node.id}`" style="display: none"></div>
   </div>
@@ -37,6 +35,7 @@ const chartContainer = ref<HTMLElement | null>(null)
 const orgData = ref([]) as Ref<TDataType[]>
 const isLoading = ref(true)
 const isReady = ref(false)
+const isViewMode = ref(true)
 const search = ref('')
 
 watch(
@@ -70,6 +69,7 @@ export type TDataType = {
   name: string
   on: boolean
   accent: string
+  isEditMode: boolean
 }
 // TNodeBase
 //TDepartment = TNodeBase & ....
@@ -83,7 +83,8 @@ const data = [
     name: 'RTA 200',
     height: 200,
     on: true,
-    accent: 'blue'
+    accent: 'blue',
+    isEditMode: false
   },
   {
     id: '2',
@@ -91,7 +92,8 @@ const data = [
     name: 'ABC 400',
     height: 400,
     on: true,
-    accent: 'red'
+    accent: 'red',
+    isEditMode: false
   },
   {
     id: '3',
@@ -99,7 +101,8 @@ const data = [
     name: 'XYZ 500',
     height: 500,
     on: true,
-    accent: 'green'
+    accent: 'green',
+    isEditMode: false
   },
   {
     id: '4',
@@ -107,7 +110,8 @@ const data = [
     name: 'QWE 300',
     height: 300,
     on: true,
-    accent: 'red'
+    accent: 'red',
+    isEditMode: false
   }
 ] as TDataType[]
 

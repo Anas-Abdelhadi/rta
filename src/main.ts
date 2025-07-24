@@ -3,6 +3,7 @@ import './style.css'
 import App from './App.vue'
 import { createApp } from 'vue'
 
-const app = createApp(App)
+const mainApp = createApp(App)
  
-app.mount('#app')
+mainApp.mount('#app')
+export {mainApp}

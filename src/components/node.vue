@@ -48,8 +48,10 @@ const computedStyle = computed(() => ({
   <div class="card-ui" role="region" aria-label="Node Card" :style="computedStyle">
     <div class="band" :style="{ background: node?.data?.accent ?? 'white' }"></div>
     {{ node?.data?._highlighted ? 'true' : 'false' }}
-    <button @click="click">press</button>
-
+    <template v-if="node?.data.isEditMode">
+      <button @click="click">add new child</button>
+    </template>
+    {{ node?.data.isEditMode ? 'EDIT MODE' : 'VIEW MODE' }}
     <!-- Header -->
 
     <div class="card-header">
