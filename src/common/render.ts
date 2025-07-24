@@ -135,6 +135,7 @@ export function useOrgChart() {
     const chart = new CubesOrgChart()
       .container(container as any)
       .data(data)
+       
       .scaleExtent([0.2, 1.75])
       .setActiveNodeCentered(true)
       .nodeHeight(node => (node.data.on ? node.data.height : 150))
@@ -166,8 +167,8 @@ export function useOrgChart() {
       })
       .linkUpdate(function (d: any) {
         d3.select(this)
-          .attr('stroke', (d: any) => (d.data._upToTheRootHighlighted ? '#4285F4' : '#1E1C8A'))
-          .attr('stroke-width', (d: any) => (d.data._upToTheRootHighlighted ? 4 : 2))
+          .attr('stroke', (d: any) => (d.data._upToTheRootHighlighted ? '#464646ff' : '#888888ff'))
+          //.attr('stroke-width', (d: any) => (d.data._upToTheRootHighlighted ? 4 : 2))
         if (d.data._upToTheRootHighlighted) d3.select(this).raise()
       })
 
