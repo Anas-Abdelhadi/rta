@@ -60,7 +60,7 @@ const computedStyle = computed(() => ({
     </div>
     <!-- Details -->
     <div class="card-details">
-      <button class="card-button" @click="toggle">{{ node?.data.on ? 'collapse' : 'expand' }}</button>
+      <!--<button class="card-button" @click="toggle">{{ node?.data.on ? 'collapse' : 'expand' }}</button>-->
     </div>
   </div>
 </template>
