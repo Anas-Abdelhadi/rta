@@ -111,3 +111,24 @@ body {
   border: 1px solid #888;
   box-sizing: content-box;
 }
+/*DRAG DROP..*/
+.drag-enabled:not(.dragging-active) .node.draggable {
+  stroke: grey;
+  stroke-width: 3px;
+  stroke-dasharray: 2px;
+}
+
+.drag-enabled.dragging-active .droppable {
+  stroke: green;
+  stroke-width: 3px;
+  stroke-dasharray: 5px;
+}
+
+.node.dragging {
+  stroke-dasharray: 0 !important;
+  stroke-width: 0 !important;
+}
+
+.node.dragging .content-container {
+  background-color: #ffffff;
+}

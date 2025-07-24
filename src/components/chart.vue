@@ -13,7 +13,11 @@
       <h4>EDIT CHART</h4>
       <button v-if="!chartInstance?.isEditMode" @click="chartInstance?.setEditMode(true)">EDIT</button>
       <template v-else>
+        <button :disabled="undoActions.length == 0" @click="undo">UNDO</button>
+        <button :disabled="redoActions.length == 0" @click="redo">REDO</button>
         <button @click="chartInstance?.setEditMode(false)">DONE</button>
+        <button v-if="!chartInstance?.enableDrag" @click="chartInstance?.setEnableDrag(true)">Allow Drag</button>
+        <button v-else @click="chartInstance?.setEnableDrag(false)">Disallow Drag</button>
       </template>
       <br />
       <h4>SEARCH</h4>
@@ -35,7 +39,7 @@ const chartContainer = ref<HTMLElement | null>(null)
 const orgData = ref([]) as Ref<TDataType[]>
 const isLoading = ref(true)
 const isReady = ref(false)
-const isViewMode = ref(true)
+
 const search = ref('')
 
 watch(
@@ -47,6 +51,10 @@ watch(
 
 const {
   render,
+  undo,
+  redo,
+  undoActions,
+  redoActions,
   filterChart,
   chartInstance,
   fitChart,

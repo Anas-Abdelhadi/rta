@@ -1,11 +1,11 @@
-import * as d3 from 'd3'
+import * as d3 from 'd3';
 
-import { OrgChart, type State } from 'd3-org-chart'
-import { nextTick, ref, type Ref } from 'vue'
-import { createApp } from 'vue'
-import NodeUI from '../components/node.vue'
-import { mainApp } from '../main'
-import type { TDataType } from '../components/chart.vue'
+import { OrgChart, type State } from 'd3-org-chart';
+import { nextTick, ref, type Ref } from 'vue';
+import { createApp } from 'vue';
+import NodeUI from '../components/node.vue';
+import { mainApp } from '../main';
+import type { TDataType } from '../components/chart.vue';
 const mock = () => new Promise<void>(r => setTimeout(() => r(), 300))
 const vueAppCache = new Map<string, ReturnType<typeof createApp>>()
 const nodes = new Map<string, d3.HierarchyNode<any>>()
@@ -33,7 +33,7 @@ async function mountVueNodes(chart: CubesOrgChart) {
       onToggle: (on: boolean) => {
         debugger
         //_directSubordinates
-       // nodes.set(node.id!, { ...node, on })
+        // nodes.set(node.id!, { ...node, on })
         chart.toggle(node.id, on)
       },
       onAdd: async () => {
@@ -51,7 +51,7 @@ async function mountVueNodes(chart: CubesOrgChart) {
         chart.fit({ nodes: [nodes.get(node.id)!, nodes.get(id)!] })
       }
     })
-     Object.assign(app._context, mainApp._context)
+    Object.assign(app._context, mainApp._context)
     vueAppCache.set(id, app)
     app.mount(mountPoint)
   })
@@ -91,8 +91,13 @@ export class CubesOrgChart extends OrgChart<any> {
 
   //   return this
   // }
-  isEditMode:boolean = false
-  setEditMode(isEdit:boolean){
+  isEditMode: boolean = false
+  enableDrag: boolean = false
+  setEnableDrag(canDrag: boolean) {
+    this.enableDrag = canDrag
+    this.render()
+  }
+  setEditMode(isEdit: boolean) {
     this.isEditMode = isEdit
     this.render()
   }
@@ -132,9 +137,21 @@ export class CubesOrgChart extends OrgChart<any> {
     return this
   }
 }
+export type THistoryAction = { id: string; parentId: string }
 export function useOrgChart() {
   const chartInstance: Ref<CubesOrgChart | null> = ref(null)
   const clickedNodeID: Ref<string | null> = ref(null)
+  ////////////
+
+  let dragNode: d3.HierarchyNode<TDataType> | null,
+    dropNode: d3.HierarchyNode<TDataType> | null,
+    dragStartX: number,
+    dragStartY: number,
+    isDragStarting = false,
+    undoActions = ref([] as THistoryAction[]) ,
+    redoActions = ref([] as THistoryAction[])
+
+  ////////////////
 
   const render = (container: HTMLElement, data: any[]) => {
     if (!container || !data.length) return
@@ -142,7 +159,7 @@ export function useOrgChart() {
     const chart = new CubesOrgChart()
       .container(container as any)
       .data(data)
-       
+
       .scaleExtent([0.2, 1.75])
       .setActiveNodeCentered(true)
       .nodeHeight(node => (node.data.on ? node.data.height : 150))
@@ -160,8 +177,26 @@ export function useOrgChart() {
         nodes.set(d.data.id, d)
         return `<div id="vue-node-mount-${d.data.id}" class="vue-node-placeholder"></div>`
       })
-      .nodeUpdate(function (d:d3.HierarchyNode<TDataType>) {
-        chartInstance.value && (d.data.isEditMode= chartInstance.value!.isEditMode)
+      .nodeEnter(function (_node: d3.HierarchyNode<TDataType>) {
+        d3.select(this).call(
+          d3
+            .drag()
+            .filter(function () {
+              return !!chartInstance.value?.enableDrag && this.classList.contains('draggable')
+            })
+            .on('start', function (d, node: any) {
+              onDragStart(this, d, node)
+            })
+            .on('drag', function (dragEvent) {
+              onDrag(this, dragEvent)
+            })
+            .on('end', function (d) {
+              onDragEnd(this, d)
+            })
+        )
+      })
+      .nodeUpdate(function (d: d3.HierarchyNode<TDataType>) {
+        chartInstance.value && (d.data.isEditMode = chartInstance.value!.isEditMode)
         nodes.set(d.data.id, d)
         d3.select(this)
           .select('.node-rect')
@@ -170,13 +205,20 @@ export function useOrgChart() {
           .attr('stroke-width', (d: any) => (d.data._highlighted || d.data._upToTheRootHighlighted ? 4 : 2))
           .attr('stroke-linejoin', 'round')
           .style('stroke-alignment', 'outer')
+        //// set drag drop flags/classes
+        if (d.id === '1') {
+          d3.select(this).classed('draggable', false)
+        } else {
+          d3.select(this).classed('droppable draggable', true)
+        }
+
+        // drag drop
 
         d3.select(this).select('.node-button-g').remove()
       })
       .linkUpdate(function (d: any) {
-        d3.select(this)
-          .attr('stroke', (d: any) => (d.data._upToTheRootHighlighted ? '#464646ff' : '#888888ff'))
-          //.attr('stroke-width', (d: any) => (d.data._upToTheRootHighlighted ? 4 : 2))
+        d3.select(this).attr('stroke', (d: any) => (d.data._upToTheRootHighlighted ? '#464646ff' : '#888888ff'))
+        //.attr('stroke-width', (d: any) => (d.data._upToTheRootHighlighted ? 4 : 2))
         if (d.data._upToTheRootHighlighted) d3.select(this).raise()
       })
 
@@ -184,7 +226,7 @@ export function useOrgChart() {
       .nodeButtonY(() => -10)
       .nodeButtonWidth(() => 40)
       .nodeButtonHeight(() => 20)
-      .buttonContent(({ node }: { node: d3.HierarchyNode<any>; state: State<any> }) => {
+      .buttonContent(({ node }: { node: d3.HierarchyNode<TDataType>; state: State<any> }) => {
         const text = node.children ? `-` : `+`
         return `
           <div class="card-button" >
@@ -200,19 +242,19 @@ export function useOrgChart() {
       .fit()
 
     d3.select(container).select('svg').attr('width', '100%').attr('height', '100vh')
-    chart.onExpandOrCollapse(d => {
+    chart.onExpandOrCollapse(() => {
       // //todo: remove hidden!
       //  unmountVueNodes(currentIds)
 
       mountVueNodes(chart as CubesOrgChart)
       //chart.render()
     })
-    chartInstance.value = chart
+    chartInstance.value = chart as CubesOrgChart
   }
 
   const fitChart = () => chartInstance.value?.fit()
   const directionTop = () => {
-    chartInstance.value?.compact(true).layout('top').render().fit()
+    chartInstance.value?.compact(false).layout('top').render().fit()
   }
   const directionLeft = () => {
     chartInstance.value?.layout('left').render().fit()
@@ -277,6 +319,184 @@ export function useOrgChart() {
     // Update data and rerender graph
     chartInstance.value?.data(data).render().fit()
   }
+
+  ///DRAG DROP
+  function onDragStart(element: Element, dragEvent: any, node: d3.HierarchyNode<TDataType>) {
+    dragNode = node
+    const width = dragEvent.subject.width
+    const half = width / 2
+    const x = dragEvent.x - half
+    dragStartX = x
+    dragStartY = parseFloat(dragEvent.y)
+    isDragStarting = true
+
+    d3.select(element).classed('dragging', true)
+  }
+
+  function onDrag(element: Element, dragEvent: any) {
+    if (!dragNode) {
+      return
+    }
+
+    const state = chartInstance.value?.getChartState()
+    const g = d3.select(element)
+
+    // This condition is designed to run at the start of a drag only
+    if (isDragStarting) {
+      isDragStarting = false
+      document!.querySelector('.chart-container')!.classList.add('dragging-active')
+
+      // This sets the Z-Index above all other nodes, by moving the dragged node to be the last-child.
+      g.raise()
+
+      const descendants = dragEvent.subject.descendants()
+      const linksToRemove = [...(descendants || []), dragEvent.subject]
+      const nodesToRemove = descendants.filter(x => x.data.id !== dragEvent.subject.id)
+
+      // Remove all links associated with the dragging node
+      state?.['linksWrapper']
+        .selectAll('path.link')
+        .data(linksToRemove, (d: any) => state.nodeId(d))
+        .remove()
+
+      // Remove all descendant nodes associated with the dragging node
+      if (nodesToRemove) {
+        state?.['nodesWrapper']
+          .selectAll('g.node')
+          .data(nodesToRemove, (d: any) => state.nodeId(d))
+          .remove()
+      }
+    }
+
+    dropNode = null
+    const cP = {
+      width: dragEvent.subject.width,
+      height: dragEvent.subject.height,
+      left: dragEvent.x,
+      right: dragEvent.x + dragEvent.subject.width,
+      top: dragEvent.y,
+      bottom: dragEvent.y + dragEvent.subject.height,
+      midX: dragEvent.x + dragEvent.subject.width / 2,
+      midY: dragEvent.y + dragEvent.subject.height / 2
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    const allNodes = d3.selectAll('g.node:not(.dragging)')
+    allNodes.select('rect').attr('fill', 'none')
+
+    allNodes
+      .filter(function (d2: any) {
+        const cPInner = {
+          left: d2.x,
+          right: d2.x + d2.width,
+          top: d2.y,
+          bottom: d2.y + d2.height
+        }
+
+        if (cP.midX > cPInner.left && cP.midX < cPInner.right && cP.midY > cPInner.top && cP.midY < cPInner.bottom && (this as any)?.classList.contains('droppable')) {
+          dropNode = d2
+          return d2
+        }
+      })
+      .select('rect')
+      .attr('fill', '#e4e1e1')
+
+    dragStartX += parseFloat(dragEvent.dx)
+    dragStartY += parseFloat(dragEvent.dy)
+    g.attr('transform', 'translate(' + dragStartX + ',' + dragStartY + ')')
+  }
+
+  function onDragEnd(element: Element, dragEvent: any) {
+    document.querySelector('.chart-container')?.classList.remove('dragging-active')
+    if (!dragNode) {
+      return
+    }
+
+    d3.select(element).classed('dragging', false)
+
+    if (!dropNode) {
+      chartInstance.value?.render()
+      return
+    }
+
+    if (dragEvent.subject.parent.id === dropNode.id) {
+      chartInstance.value?.render()
+      return
+    }
+
+    d3.select(element).remove()
+
+    const data = chartInstance.value?.getChartState().data
+    const node = data?.find(x => x.id === dragEvent.subject.id)
+    const oldParentId = node.parentId
+    node.parentId = dropNode.id
+
+    redoActions.value = []
+    undoActions.value.push({
+      id: dragEvent.subject.id,
+      parentId: oldParentId
+    })
+
+    dropNode = null
+    dragNode = null
+    chartInstance.value?.render()
+    //updateDragActions();
+  }
+
+  function disableDrag() {
+    chartInstance.value?.setEnableDrag(false)
+
+    undoActions.value = []
+    redoActions.value = []
+    //updateDragActions();
+  }
+
+  function cancelDrag() {
+    if (undoActions.value.length === 0) {
+      disableDrag()
+      return
+    }
+
+    const data = chartInstance.value?.getChartState().data
+    undoActions.value.reverse().forEach(action => {
+      const node = data?.find(x => x.id === action.id)
+      node.parentId = action.parentId
+    })
+
+    disableDrag()
+    chartInstance.value?.render()
+  }
+
+  function undo() {
+    const action = undoActions.value.pop()
+    if (action) {
+      const node = chartInstance.value?.getChartState().data?.find(x => x.id === action.id)
+      const currentParentId = node.parentId
+      const previousParentId = action.parentId
+      action.parentId = currentParentId
+      node.parentId = previousParentId
+
+      redoActions.value.push(action)
+      chartInstance.value?.render()
+      // updateDragActions();
+    }
+  }
+
+  function redo() {
+    const action = redoActions.value.pop()
+    if (action) {
+      const node = chartInstance.value?.getChartState().data?.find(x => x.id === action.id)
+      const currentParentId = node.parentId
+      const previousParentId = action.parentId
+      action.parentId = currentParentId
+      node.parentId = previousParentId
+      undoActions.value.push(action)
+      chartInstance.value?.render()
+      // updateDragActions();
+    }
+  }
+
+  //
   return {
     chartInstance,
     clickedNodeID,
@@ -291,6 +511,10 @@ export function useOrgChart() {
     findParent,
     clearMarker,
     addNode,
-    filterChart
+    filterChart,
+    undoActions,
+    redoActions,
+    undo,
+    redo
   }
 }
