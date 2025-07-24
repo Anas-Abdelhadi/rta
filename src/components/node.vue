@@ -6,7 +6,6 @@ const props = defineProps<{
   node?: d3.HierarchyNode<TDataType>
 }>()
 
-// Generate a random image (not stored in the data object)
 const imageUrl = computed(() => {
   const seed = encodeURIComponent(props.node?.data?.id || props.node?.data?.name || 'default')
   return `https://picsum.photos/seed/${seed}/100/100`
@@ -39,7 +38,7 @@ const toggle = e => {
 }
 
 const computedStyle = computed(() => ({
-  // height: data.value ? `${data.value.on ? data.value.height : 150}px` : 0,
+  height: props.node?.data ? `${props.node.data.height}px` : 0,
   borderColor: props.node?.data?._highlighted ? 'red' : 'white'
   //background: data?.value?.accent ?? 'white'
 }))

@@ -1,6 +1,6 @@
 import * as d3 from 'd3'
 
-import { OrgChart } from 'd3-org-chart'
+import { OrgChart, type State } from 'd3-org-chart'
 import { nextTick, ref, type Ref } from 'vue'
 import { createApp } from 'vue'
 import NodeUI from '../components/node.vue'
@@ -150,7 +150,7 @@ export function useOrgChart() {
           .attr('stroke-linejoin', 'round')
           .style('stroke-alignment', 'outer')
 
-         //----d3.select(this).select('.node-button-g').remove()
+          //d3.select(this).select('.node-button-g').remove()
       }) 
       .linkUpdate(function (d: any) {
         d3.select(this)
