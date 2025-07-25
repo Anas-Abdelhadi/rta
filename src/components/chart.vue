@@ -30,7 +30,7 @@
   </div>
 </template>
 <script setup lang="ts">
-import { nextTick, onMounted, ref, watch, type Ref } from 'vue'
+import { nextTick, onMounted, reactive, ref, watch, type Ref } from 'vue'
 
 import { useOrgChart } from '../common/render'
 
@@ -44,8 +44,8 @@ const search = ref('')
 
 watch(
   () => [isReady.value, search.value],
-  () => {
-    isReady.value && filterChart?.(search.value)
+  (to, from) => {
+    isReady.value && to[1] !== from[1] && filterChart?.(search.value)
   }
 )
 
@@ -75,7 +75,7 @@ export type TDataType = {
   height: number // -
   //extra...
   name: string
-  on: boolean
+  expanded: boolean
   accent: string
   isEditMode: boolean
 }
@@ -84,13 +84,14 @@ export type TDataType = {
 
 // node, children?:[]
 //2. flatten
-const data = [
+const data = reactive([
   {
     id: '1',
     parentId: '',
     name: 'RTA 200',
     height: 200,
-    on: true,
+    expanded: true,
+    zzz: 1000,
     accent: 'blue',
     isEditMode: false
   },
@@ -99,7 +100,7 @@ const data = [
     parentId: '1',
     name: 'ABC 400',
     height: 400,
-    on: true,
+    expanded: true,
     accent: 'red',
     isEditMode: false
   },
@@ -108,7 +109,7 @@ const data = [
     parentId: '1',
     name: 'XYZ 500',
     height: 500,
-    on: true,
+    expanded: true,
     accent: 'green',
     isEditMode: false
   },
@@ -117,11 +118,11 @@ const data = [
     parentId: '2',
     name: 'QWE 300',
     height: 300,
-    on: true,
+    expanded: true,
     accent: 'red',
     isEditMode: false
   }
-] as TDataType[]
+]) as TDataType[]
 
 const mock = () => new Promise<TDataType[]>(r => setTimeout(() => r(data), 1000))
 onMounted(async () => {

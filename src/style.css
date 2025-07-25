@@ -132,3 +132,7 @@ body {
 .node.dragging .content-container {
   background-color: #ffffff;
 }
+
+#actions {
+  position: fixed;
+}

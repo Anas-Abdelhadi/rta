@@ -11,7 +11,7 @@ const imageUrl = computed(() => {
   return `https://picsum.photos/seed/${seed}/100/100`
 })
 
-const emits = defineEmits(['add', 'changeHeight', 'toggle'])
+const emits = defineEmits(['add', 'toggle'])
 const click = e => {
   debugger
   e.stopPropagation()
@@ -20,21 +20,13 @@ const click = e => {
   emits('add', e)
 }
 
-const changeHeight = e => {
-  debugger
-  e.stopPropagation()
-  e.preventDefault()
-  console.log(e)
-
-  emits('changeHeight', !props.node?.data?.on)
-}
 const toggle = e => {
   debugger
   e.stopPropagation()
   e.preventDefault()
   console.log(e)
 
-  emits('toggle', !props.node?.data.on)
+  emits('toggle', props.node)
 }
 
 const computedStyle = computed(() => ({
@@ -62,7 +54,7 @@ const computedStyle = computed(() => ({
     </div>
     <!-- Details -->
     <div class="card-details">
-      <button class="card-button" @click="toggle">{{ node?.data.on ? 'collapse' : 'expand' }}</button>
+      <button class="card-button" @click="toggle">{{ node?.data.expanded ? 'collapse' : 'expand' }}</button>
     </div>
   </div>
 </template>

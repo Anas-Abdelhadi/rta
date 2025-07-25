@@ -1,22 +1,27 @@
-import * as d3 from 'd3';
+import * as d3 from 'd3'
 
-import { OrgChart, type State } from 'd3-org-chart';
-import { nextTick, ref, type Ref } from 'vue';
-import { createApp } from 'vue';
-import NodeUI from '../components/node.vue';
-import { mainApp } from '../main';
-import type { TDataType } from '../components/chart.vue';
+import { OrgChart } from 'd3-org-chart'
+import { nextTick, ref, type Ref } from 'vue'
+import { createApp } from 'vue'
+import NodeUI from '../components/node.vue'
+import { mainApp } from '../main'
+import type { TDataType } from '../components/chart.vue'
 const mock = () => new Promise<void>(r => setTimeout(() => r(), 300))
 const vueAppCache = new Map<string, ReturnType<typeof createApp>>()
-const nodes = new Map<string, d3.HierarchyNode<any>>()
 
 async function mountVueNodes(chart: CubesOrgChart) {
-  ;(chart.data() ?? []).forEach(node => {
-    const id = node.id
+  ;(chart.getChartState().allNodes ?? []).forEach(node => {
+    const id = node.data.id
+
     const mountPoint = document.getElementById(`vue-node-mount-${id}`)
+    //  // sync data
+    //if (node.children) node.data.expanded = node.children?.every(x => x.data._expanded)
+    console.log('Node ID ', node.data.id, 'EXPANDED ', node.data.expanded)
+
+    //else node.data.expanded= node.data._expanded
 
     if (!mountPoint) return
-    debugger
+
     if (vueAppCache.has(id)) {
       // App is mounted: update props via ref
       const app = vueAppCache.get(id)!
@@ -24,37 +29,43 @@ async function mountVueNodes(chart: CubesOrgChart) {
       app.unmount()
       vueAppCache.delete(id)
     }
-
+    node.data.expanded = node.children?.every(x => x.data._expanded)
     const app = createApp(NodeUI, {
-      node: nodes.get(node.id)!,
+      node,
       // onToggle: (on: boolean) => {
       //   chart.updateNodeHeight(node.id, on)
       // },
-      onToggle: (on: boolean) => {
+      onToggle: (node: any) => {
         debugger
         //_directSubordinates
         // nodes.set(node.id!, { ...node, on })
-        chart.toggle(node.id, on)
+        chart.toggle(node)
       },
       onAdd: async () => {
+        let n = node
         const id = `${Math.random().toString(36).slice(2)}`
         chart.duration(0)
-        chart.setExpanded(node.id, true)
-        chart.expand(nodes.get(node.id)!)
-        chart.addNode({ ...node, parentId: node.id, id })
-
+        debugger
+        chart.setExpanded(n.id!, true)
+        chart.expand(n)
+        !n.data.expanded && chart.toggle(n)
+        chart.addNode({ ...n, parentId: n.id, id })
+        chart.updateNodesState()
         chart.render()
 
         await nextTick()
         chart.duration(650) //.setCentered(id).render()
         await mock()
-        chart.fit({ nodes: [nodes.get(node.id)!, nodes.get(id)!] })
+
+        chart.fit({ nodes: [node] })
+        //chart.fit({ nodes: chart.getNodeChildren(n ,[]).map(x=> x.id)  })
       }
     })
     Object.assign(app._context, mainApp._context)
     vueAppCache.set(id, app)
     app.mount(mountPoint)
   })
+
   // await nextTick()
   // chart.duration(650)  .fit()
 }
@@ -87,7 +98,7 @@ export class CubesOrgChart extends OrgChart<any> {
   //   super.render()
 
   //   // Mount new ones after DOM is updated
-  //   mountVueNodes(data, this)
+  //
 
   //   return this
   // }
@@ -97,23 +108,23 @@ export class CubesOrgChart extends OrgChart<any> {
     this.enableDrag = canDrag
     this.render()
   }
+  sync() {
+    ;(this.getChartState().allNodes ?? []).forEach(node => {
+      //  // sync data
+      if (node.children) node.data.expanded = node.children?.every(x => x.data._expanded)
+      console.log('Node ID ', node.data.id, 'EXPANDED ', node.data.expanded)
+    })
+    this.updateNodesState()
+    this.data(this.getChartState().data).render()
+  }
   setEditMode(isEdit: boolean) {
     this.isEditMode = isEdit
     this.render()
   }
-  toggle(nodeId: string, on: boolean) {
-    const node = nodes.get(nodeId)
+  toggle(node: any) {
     debugger
     if (!node) return
 
-    // if (on) {
-    //   this.setExpanded(node.id)
-    // } else {
-    //   this.setExpanded(node.id, false)
-    // }
-
-    // this.updateNodesState()
-    // this.render()
     const clickEvent = new MouseEvent('click', {
       bubbles: true,
       cancelable: true,
@@ -121,6 +132,10 @@ export class CubesOrgChart extends OrgChart<any> {
     })
 
     this.onButtonClick(clickEvent, node)
+   
+    node.data.expanded = node.children?.every(x => x.data._expanded)
+     
+    this.fit()
   }
   render() {
     //const cache = Array.from(vueAppCache.values()).map(({ dataRef }) => dataRef.value)
@@ -133,7 +148,11 @@ export class CubesOrgChart extends OrgChart<any> {
 
     // re-mount Vue components
     mountVueNodes(this)
-
+    // ;(this.getChartState().allNodes ?? []).forEach(node => {
+    //   //  // sync data
+    //   if (node.children) node.data.expanded = node.children?.every(x => x.data._expanded)
+    //   console.log('Node ID ', node.data.id, 'EXPANDED ', node.data.expanded)
+    // })
     return this
   }
 }
@@ -148,7 +167,7 @@ export function useOrgChart() {
     dragStartX: number,
     dragStartY: number,
     isDragStarting = false,
-    undoActions = ref([] as THistoryAction[]) ,
+    undoActions = ref([] as THistoryAction[]),
     redoActions = ref([] as THistoryAction[])
 
   ////////////////
@@ -157,27 +176,36 @@ export function useOrgChart() {
     if (!container || !data.length) return
 
     const chart = new CubesOrgChart()
+      .initialExpandLevel(0)
       .container(container as any)
       .data(data)
 
       .scaleExtent([0.2, 1.75])
-      .setActiveNodeCentered(true)
-      .nodeHeight(node => (node.data.on ? node.data.height : 150))
+      //.setActiveNodeCentered(true)
+      .nodeHeight(node => node.data.height)
       .nodeWidth(() => 380)
       .childrenMargin(() => 120)
       .compactMarginBetween(() => 80)
       .compactMarginPair(() => 120)
       .siblingsMargin(() => 120)
-      .onNodeClick((d: d3.HierarchyNode<any>, ...rest) => {
+      .onNodeClick((d: d3.HierarchyNode<TDataType>, ...rest) => {
         console.log(d, rest)
         clickedNodeID.value = d.data.id
         markNode(clickedNodeID.value!)
       })
-      .nodeContent((d: d3.HierarchyNode<any>) => {
-        nodes.set(d.data.id, d)
+      // .nodeExit(function(d: d3.HierarchyNode<TDataType>){
+      //   console.log('>>> ',d)
+      // })
+      .nodeContent((d: d3.HierarchyNode<TDataType>) => {
+        console.log('$$$$$ ', d.id, d)
+
+        //d.data._expanded = d.data.on
+
         return `<div id="vue-node-mount-${d.data.id}" class="vue-node-placeholder"></div>`
       })
-      .nodeEnter(function (_node: d3.HierarchyNode<TDataType>) {
+      .nodeEnter(function (d: d3.HierarchyNode<TDataType>) {
+        //d.data.on = d.data._expanded
+
         d3.select(this).call(
           d3
             .drag()
@@ -196,8 +224,13 @@ export function useOrgChart() {
         )
       })
       .nodeUpdate(function (d: d3.HierarchyNode<TDataType>) {
-        chartInstance.value && (d.data.isEditMode = chartInstance.value!.isEditMode)
-        nodes.set(d.data.id, d)
+        debugger
+        console.log('>>> ' + d.id, d)
+        console.log('>>> ', chartInstance.value?.getChartState())
+        if (chartInstance.value) {
+          d.data.isEditMode = chartInstance.value!.isEditMode
+        }
+
         d3.select(this)
           .select('.node-rect')
           // .attr('stroke', (d: any) => (d.data._highlighted || d.data._upToTheRootHighlighted ? '#4285F4' : 'none'))
@@ -222,18 +255,18 @@ export function useOrgChart() {
         if (d.data._upToTheRootHighlighted) d3.select(this).raise()
       })
 
-      .nodeButtonX(() => -20)
-      .nodeButtonY(() => -10)
-      .nodeButtonWidth(() => 40)
-      .nodeButtonHeight(() => 20)
-      .buttonContent(({ node }: { node: d3.HierarchyNode<TDataType>; state: State<any> }) => {
-        const text = node.children ? `-` : `+`
-        return `
-          <div class="card-button" >
-            ${text}
-          </div>
-        `
-      })
+      // .nodeButtonX(() => -20)
+      // .nodeButtonY(() => -10)
+      // .nodeButtonWidth(() => 40)
+      // .nodeButtonHeight(() => 20)
+      // .buttonContent(({ node }: { node: d3.HierarchyNode<TDataType>; state: State<any> }) => {
+      //   const text = node.children ? `-` : `+`
+      //   return `
+      //     <div class="card-button" >
+      //       ${text}
+      //     </div>
+      //   `
+      // })
 
       .duration(650)
       .compact(false)
@@ -241,15 +274,37 @@ export function useOrgChart() {
       .render()
       .fit()
 
+    // ;(chart.getChartState().allNodes ?? []).forEach(node => {
+    //   //  // sync data
+    //   if (node.children) node.data.expanded = node.children?.every(x => x.data._expanded)
+    //   console.log('Node ID ', node.data.id, 'EXPANDED ', node.data.expanded)
+    // })
+
     d3.select(container).select('svg').attr('width', '100%').attr('height', '100vh')
     chart.onExpandOrCollapse(() => {
       // //todo: remove hidden!
       //  unmountVueNodes(currentIds)
 
       mountVueNodes(chart as CubesOrgChart)
+      // ;(chart.getChartState().allNodes ?? []).forEach(node => {
+      //   //  // sync data
+      //   if (node.children) node.data.expanded = node.children?.every(x => x.data._expanded)
+      //   console.log('Node ID ', node.data.id, 'EXPANDED ', node.data.expanded)
+      // })
+      // /////
+      // ;(chart.getChartState().allNodes ?? []).forEach(node => {
+      //   //  // sync data
+      //   if (node.children) node.data.expanded = node.children?.every(x => x.data._expanded)
+      //   debugger
+      // })
+
+      /////
+      debugger
       //chart.render()
     })
     chartInstance.value = chart as CubesOrgChart
+    chartInstance.value.expandAll().fit()
+    chartInstance.value.sync()
   }
 
   const fitChart = () => chartInstance.value?.fit()
@@ -294,18 +349,35 @@ export function useOrgChart() {
     debugger
     chartInstance.value?.addNode(newNode).render()
   }
-
-  function filterChart(value: string) {
-    console.log('value search... ', value)
-
+  let originalData: any = undefined
+  async function filterChart(value: string) {
+    debugger
     // Clear previous higlighting
-    chartInstance.value?.clearHighlighting()
+     
+    chartInstance.value?.clearHighlighting ()
+    if (value.trim().length) {
+      if (originalData === undefined) {
+        originalData = [...(chartInstance.value?.data() ?? [])]
+      }
+    } else {
+      chartInstance.value?.data(originalData)
+      await nextTick()
+       chartInstance.value?.expandAll().fit()
+      chartInstance.value?.sync()
+      
+      originalData = undefined
+      return
+    }
+    console.log('value search... ', value)
 
     // Get chart nodes
     const data = chartInstance.value?.data() ?? []
 
     // Mark all previously expanded nodes for collapse
-    data.forEach(d => (d._expanded = false))
+    data.forEach(d => {
+      d._expanded = false
+      d.expanded = false
+    })
 
     // Loop over data and check if input value matches any name
     data.forEach(d => {
@@ -313,10 +385,12 @@ export function useOrgChart() {
         // If matches, mark node as highlighted
         d._highlighted = true
         d._expanded = true
+        d.expanded = true
       }
     })
 
     // Update data and rerender graph
+
     chartInstance.value?.data(data).render().fit()
   }
 
